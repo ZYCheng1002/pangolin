@@ -59,6 +59,13 @@ public:
         SetOffset(virtual_clock_offset);
     }
 
+    // Should only be called if no other callers are currently calling it
+    void Reset() {
+      seeking = false;
+      time_queue_us.clear();
+      SetOffset(std::chrono::milliseconds(0));
+    }
+
     // No copy constructor
     SyncTime(const SyncTime&) = delete;
 
@@ -173,11 +180,11 @@ public:
         Start();
     }
 
-    Signal<> OnTimeStart;
+    sigslot::signal<> OnTimeStart;
 
-    Signal<> OnTimeStop;
+    sigslot::signal<> OnTimeStop;
 
-    Signal<TimePoint> OnSeek;
+    sigslot::signal<TimePoint> OnSeek;
 
 private:
     template< typename T, typename Pred >

@@ -29,14 +29,13 @@
 
 #include <deque>
 
-#include <pangolin/platform.h>
 #include <pangolin/gl/glfont.h>
+#include <pangolin/gl/colour.h>
 #include <pangolin/var/var.h>
 #include <pangolin/display/view.h>
 #include <pangolin/handler/handler.h>
-#include <pangolin/gl/colour.h>
 
-#include <pangolin/console/ConsoleInterpreter.h>
+#include <pangolin/console/InterpreterInterface.h>
 
 namespace pangolin
 {
@@ -51,18 +50,18 @@ public:
         {
         }
 
-        Line(const GlText& text, ConsoleLineType linetype = ConsoleLineTypeCmd )
+        Line(const GlText& text, InterpreterLineType linetype = ConsoleLineTypeCmd )
             : text(text), linetype(linetype)
         {
         }
 
         GlText text;
-        ConsoleLineType linetype;
+        InterpreterLineType linetype;
     };
 
 
     // Construct with interpreter (and take ownership)
-    ConsoleView(ConsoleInterpreter* interpreter);
+    ConsoleView(const std::shared_ptr<InterpreterInterface>& interpreter);
 
     ~ConsoleView();
 
@@ -86,11 +85,11 @@ private:
 
     void ProcessOutputLines();
 
-    void AddLine(const std::string& text, ConsoleLineType linetype = ConsoleLineTypeCmd);
+    void AddLine(const std::string& text, InterpreterLineType linetype = ConsoleLineTypeCmd);
 
-    Line* GetLine(int id, ConsoleLineType line_type, const std::string& prefix = "");
+    Line* GetLine(int id, InterpreterLineType line_type, const std::string& prefix = "");
 
-    ConsoleInterpreter* interpreter;
+    std::shared_ptr<InterpreterInterface> interpreter;
 
     GlFont& font;
 
@@ -102,7 +101,7 @@ private:
     GLfloat bottom;
 
     Colour background_colour;
-    std::map<ConsoleLineType,pangolin::Colour> line_colours;
+    std::map<InterpreterLineType,pangolin::Colour> line_colours;
     float animation_speed;
 };
 

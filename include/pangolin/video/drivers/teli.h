@@ -27,9 +27,13 @@
 
 #pragma once
 
-#include <pangolin/pangolin.h>
+#include <pangolin/video/video_interface.h>
 #include <pangolin/utils/timer.h>
-#include <pangolin/video/video.h>
+
+#if defined(_WIN_)
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#endif
 
 #include <TeliCamApi.h>
 

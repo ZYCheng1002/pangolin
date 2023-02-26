@@ -1,8 +1,6 @@
 #pragma once
 
-#include <pangolin/pangolin.h>
-
-#include <pangolin/video/video.h>
+#include <pangolin/video/video_interface.h>
 #include <pangolin/video/drivers/openni_common.h>
 
 // Workaround poor OpenNI Platform test on Linux before including XnCppWrapper.h
@@ -13,7 +11,7 @@
 
 // OpenNI generates SO MANY warnings, we'll just disable all for this header(!)
 // GCC and clang will listen to this pramga.
-#ifndef _MSVC_
+#ifdef __GNUC__
 #pragma GCC system_header
 #endif
 #include <XnCppWrapper.h>

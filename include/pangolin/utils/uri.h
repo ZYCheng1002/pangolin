@@ -27,16 +27,15 @@
 
 #pragma once
 
+#include <string>
 #include <pangolin/platform.h>
 #include <pangolin/utils/params.h>
-#include <string>
 
 namespace pangolin
 {
 
-class PANGOLIN_EXPORT Uri : public Params
+struct PANGOLIN_EXPORT Uri : public Params
 {
-public:
     std::string scheme;
     std::string url;
     std::string full_uri;

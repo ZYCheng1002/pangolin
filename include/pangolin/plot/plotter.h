@@ -36,8 +36,8 @@
 #include <pangolin/gl/glfont.h>
 #include <pangolin/gl/glsl.h>
 #include <pangolin/handler/handler.h>
+#include <pangolin/utils/range.h>
 #include <pangolin/plot/datalog.h>
-#include <pangolin/plot/range.h>
 
 #include <set>
 
@@ -183,6 +183,16 @@ public:
     /// Reset colour wheel to initial state. May be useful together with ClearSeries() / ClearMarkers()
     void ResetColourWheel();
 
+    void ShowHoverLines(bool show)
+    {
+        showHoverLines = show;
+    }
+
+    void ShowTicks(bool show)
+    {
+        showTicks = show;
+    }
+
 protected:
     struct PANGOLIN_EXPORT Tick
     {
@@ -275,6 +285,9 @@ protected:
 
     Plotter* linked_plotter_x;
     Plotter* linked_plotter_y;
+
+    bool showTicks;
+    bool showHoverLines;
 };
 
 } // namespace pangolin

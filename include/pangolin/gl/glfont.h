@@ -37,12 +37,10 @@ namespace pangolin {
 class PANGOLIN_EXPORT GlFont
 {
 public:
-    // Singleton instance if requested.
-    static GlFont& I();
-
     // Load GL Font data. Delay uploading as texture until first use.
     GlFont(const unsigned char* ttf_buffer, float pixel_height, int tex_w=512, int tex_h=512);
     GlFont(const std::string& filename, float pixel_height, int tex_w=512, int tex_h=512);
+    GlFont(float pixel_height, int tex_w=512, int tex_h=512);
 
     virtual ~GlFont();
 
@@ -54,7 +52,10 @@ public:
     inline float Height() const {
         return font_height_px;
     }
-    
+    inline float MaxWidth() const {
+        return font_max_width_px;
+    }
+
 protected:
     void InitialiseFont(const unsigned char* ttf_buffer, float pixel_height, int tex_w, int tex_h);
 
@@ -65,6 +66,7 @@ protected:
     const static int NUM_CHARS = 96;
 
     float font_height_px;
+    float font_max_width_px;
 
     int tex_w;
     int tex_h;

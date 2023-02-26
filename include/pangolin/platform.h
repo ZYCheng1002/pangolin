@@ -27,32 +27,25 @@
 
 #pragma once
 
-#include <pangolin/config.h>
-
 // Include portable printf-style format macros
 #define __STDC_FORMAT_MACROS
 
-#ifdef _GCC_
-#  define PANGOLIN_DEPRECATED __attribute__((deprecated))
-#elif defined _MSVC_
-#  define PANGOLIN_DEPRECATED __declspec(deprecated)
+#define PANGOLIN_UNUSED(x) (void)(x)
+
+#ifdef __GNUC__
+#  define PANGOLIN_DEPRECATED(x) __attribute__((deprecated(x)))
+#elif defined(_MSC_VER)
+#  define PANGOLIN_DEPRECATED(x) __declspec(deprecated(x))
 #else
-#  define PANGOLIN_DEPRECATED
+#  define PANGOLIN_DEPRECATED(x)
 #endif
 
-#ifdef _MSVC_
+#ifdef _MSC_VER
 #   define __thread __declspec(thread)
 #   include <pangolin/pangolin_export.h>
 #else
 #   define PANGOLIN_EXPORT
 #endif //_MSVC_
-
-#define PANGOLIN_UNUSED(x) (void)(x)
-
-#ifdef _APPLE_IOS_
-// Not supported on this platform.
-#define __thread
-#endif // _APPLE_IOS_
 
 // HOST / DEVICE Annotations
 #ifdef __CUDACC__
@@ -62,18 +55,10 @@
 #  define PANGO_HOST_DEVICE
 #endif
 
-// Non-standard check that header exists (Clang, GCC 5.X)
-// Useful for
-#if defined(__has_include)
-#  define PANGO_HEADER_EXISTS(x) __has_include(x)
-#else
-#  define PANGO_HEADER_EXISTS(x) 0
-#endif
-
 // Workaround for Apple-Clangs lack of thread_local support
-#if defined(_CLANG_) && defined(_OSX_)
+#if defined(__clang__)
 #  if !__has_feature(cxx_thread_local)
-#     define PANGO_NO_THREADLOCAL
+#    define PANGO_NO_THREADLOCAL
 #  endif
 #endif
 

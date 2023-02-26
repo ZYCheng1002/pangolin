@@ -29,10 +29,11 @@
 
 #include <pangolin/gl/gl.h>
 #include <pangolin/gl/glpixformat.h>
-#include <pangolin/display/display.h>
 #include <pangolin/image/image_io.h>
+#include <pangolin/utils/type_convert.h>
 #include <algorithm>
 #include <stdexcept>
+#include <assert.h>
 
 namespace pangolin
 {
@@ -146,8 +147,7 @@ inline bool GlTexture::IsValid() const
 
 inline void GlTexture::Delete()
 {
-    // We have no GL context whilst exiting.
-    if(internal_format!=0 && !pangolin::ShouldQuit() ) {
+    if(internal_format!=0 ) {
         glDeleteTextures(1,&tid);
         internal_format = 0;
         tid = 0;
@@ -158,10 +158,7 @@ inline void GlTexture::Delete()
 
 inline GlTexture::~GlTexture()
 {
-    // We have no GL context whilst exiting.
-    if(internal_format!=0 && !pangolin::ShouldQuit() ) {
-        glDeleteTextures(1,&tid);
-    }
+    Delete();
 }
 
 inline void GlTexture::Bind() const
@@ -237,11 +234,14 @@ inline void GlTexture::LoadFromFile(const std::string& filename, bool sampling_l
     Load(image, sampling_linear);
 }
 
-#ifndef HAVE_GLES
 inline void GlTexture::Download(void* image, GLenum data_layout, GLenum data_type) const
 {
     Bind();
+#ifndef HAVE_GLES
     glGetTexImage(GL_TEXTURE_2D, 0, data_layout, data_type, image);
+#else
+    throw std::runtime_error("glGetTexImage not implemented on this platform.");
+#endif // HAVE_GLES
     Unbind();
 }
 
@@ -265,6 +265,16 @@ inline void GlTexture::Download(TypedImage& image) const
         image.Reinitialise(width, height, PixelFormatFromString("RGBA32"));
         Download(image.ptr, GL_RGBA, GL_UNSIGNED_BYTE);
         break;
+    case GL_RED_INTEGER:
+        image.Reinitialise(width, height, PixelFormatFromString("GRAY32") );
+        Download(image.ptr, GL_RED, GL_UNSIGNED_INT);
+        break;
+    case GL_LUMINANCE:
+    case GL_LUMINANCE32F_ARB:
+    case GL_R32F:
+        image.Reinitialise(width, height, PixelFormatFromString("GRAY32F"));
+        Download(image.ptr, GL_LUMINANCE, GL_FLOAT);
+        break;
     case GL_RGB16:
         image.Reinitialise(width, height, PixelFormatFromString("RGB48"));
         Download(image.ptr, GL_RGB, GL_UNSIGNED_SHORT);
@@ -273,10 +283,13 @@ inline void GlTexture::Download(TypedImage& image) const
         image.Reinitialise(width, height, PixelFormatFromString("RGBA64"));
         Download(image.ptr, GL_RGBA, GL_UNSIGNED_SHORT);
         break;
-    case GL_LUMINANCE:
-    case GL_LUMINANCE32F_ARB:
-        image.Reinitialise(width, height, PixelFormatFromString("GRAY32F"));
-        Download(image.ptr, GL_LUMINANCE, GL_FLOAT);
+    case GL_RGB16F:
+        image.Reinitialise(width, height, PixelFormatFromString("RGB48F"));
+        Download(image.ptr, GL_RGB, GL_HALF_FLOAT);
+        break;
+    case GL_RGBA16F:
+        image.Reinitialise(width, height, PixelFormatFromString("RGBA64F"));
+        Download(image.ptr, GL_RGBA, GL_HALF_FLOAT);
         break;
     case GL_RGB:
     case GL_RGB32F:
@@ -287,6 +300,18 @@ inline void GlTexture::Download(TypedImage& image) const
     case GL_RGBA32F:
         image.Reinitialise(width, height, PixelFormatFromString("RGBA128F"));
         Download(image.ptr, GL_RGBA, GL_FLOAT);
+        break;
+    case GL_DEPTH_COMPONENT16:
+        image.Reinitialise(width, height, PixelFormatFromString("GRAY16LE"));
+        Download(image.ptr, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT);
+        break;
+    case GL_DEPTH_COMPONENT24:
+        image.Reinitialise(width, height, PixelFormatFromString("GRAY32"));
+        Download(image.ptr, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT);
+        break;
+    case GL_DEPTH_COMPONENT32F:
+        image.Reinitialise(width, height, PixelFormatFromString("GRAY32F"));
+        Download(image.ptr, GL_DEPTH_COMPONENT, GL_FLOAT);
         break;
     default:
         throw std::runtime_error(
@@ -300,16 +325,20 @@ inline void GlTexture::Download(TypedImage& image) const
 
 inline void GlTexture::CopyFrom(const GlTexture& tex)
 {
+#ifndef HAVE_GLES
     if(!tid || width != tex.width || height != tex.height ||
        internal_format != tex.internal_format)
     {
         Reinitialise(tex.width, tex.height, tex.internal_format, true);
     }
 
-    glCopyImageSubData(tex.tid, GL_TEXTURE_2D, 0, 0, 0, 0,
+    glCopyImageSubDataNV(tex.tid, GL_TEXTURE_2D, 0, 0, 0, 0,
                        tid, GL_TEXTURE_2D, 0, 0, 0, 0,
                        width, height, 1);
     CheckGlDieOnError();
+#else
+    throw std::runtime_error("glCopyImageSubDataNV not implemented on this platform.");
+#endif
 }
 
 inline void GlTexture::Save(const std::string& filename, bool top_line_first)
@@ -318,7 +347,6 @@ inline void GlTexture::Save(const std::string& filename, bool top_line_first)
     Download(image);
     pangolin::SaveImage(image, filename, top_line_first);
 }
-#endif // HAVE_GLES
 
 inline void GlTexture::SetLinear()
 {
@@ -360,7 +388,9 @@ inline void GlTexture::RenderToViewport() const
     glTexCoordPointer(2, GL_FLOAT, 0, sq_tex);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
+#ifndef HAVE_GLES
     glEnable(GL_TEXTURE_2D);
+#endif
     Bind();
 
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
@@ -368,7 +398,9 @@ inline void GlTexture::RenderToViewport() const
     glDisableClientState(GL_VERTEX_ARRAY);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 
+#ifndef HAVE_GLES
     glDisable(GL_TEXTURE_2D);
+#endif
 }
 
 inline void GlTexture::RenderToViewport(Viewport tex_vp, bool flipx, bool flipy) const
@@ -487,8 +519,7 @@ inline void GlRenderBuffer::Reinitialise(GLint width, GLint height, GLint intern
 
 inline GlRenderBuffer::~GlRenderBuffer()
 {
-    // We have no GL context whilst exiting.
-    if( width!=0 && !pangolin::ShouldQuit() ) {
+    if( width!=0 ) {
         glDeleteRenderbuffersEXT(1, &rbid);
     }
 }
@@ -516,7 +547,7 @@ inline void GlRenderBuffer::Reinitialise(GLint width, GLint height, GLint intern
 inline GlRenderBuffer::~GlRenderBuffer()
 {
     // We have no GL context whilst exiting.
-    if( width!=0 && !pangolin::ShouldQuit() ) {
+    if( width!=0 ) {
         glDeleteTextures(1, &rbid);
     }
 }
@@ -540,6 +571,14 @@ inline GlFramebuffer::~GlFramebuffer()
     if(fbid) {
         glDeleteFramebuffersEXT(1, &fbid);
     }
+}
+
+inline GlFramebuffer::GlFramebuffer(GlTexture& colour)
+    : attachments(0)
+{
+    glGenFramebuffersEXT(1, &fbid);
+    AttachColour(colour);
+    CheckGlDieOnError();
 }
 
 inline GlFramebuffer::GlFramebuffer(GlTexture& colour, GlRenderBuffer& depth)
@@ -587,9 +626,7 @@ inline GlFramebuffer::GlFramebuffer(GlTexture& colour0, GlTexture& colour1, GlTe
 inline void GlFramebuffer::Bind() const
 {
     glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbid);
-#ifndef HAVE_GLES
     glDrawBuffers( attachments, attachment_buffers );
-#endif
 }
 
 inline void GlFramebuffer::Reinitialise()
@@ -602,9 +639,7 @@ inline void GlFramebuffer::Reinitialise()
 
 inline void GlFramebuffer::Unbind() const
 {
-#ifndef HAVE_GLES
     glDrawBuffers( 1, attachment_buffers );
-#endif
     glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
 }
 
@@ -644,10 +679,17 @@ inline GlBufferData::GlBufferData()
 {
 }
 
-inline GlBufferData::GlBufferData(GlBufferType buffer_type, GLuint size_bytes, GLenum gluse, const unsigned char* data )
+inline GlBufferData::GlBufferData(GlBufferType buffer_type, GLsizeiptr size_bytes, GLenum gluse, const void* data )
     : bo(0)
 {
     Reinitialise(buffer_type, size_bytes, gluse, data );
+}
+
+template<typename T>
+GlBufferData::GlBufferData(GlBufferType buffer_type, const std::vector<T>& data, GLenum gluse)
+    : bo(0)
+{
+    Reinitialise(buffer_type, data.size()*sizeof(T), gluse, &data[0]);
 }
 
 //! Move Constructor
@@ -656,6 +698,7 @@ inline GlBufferData::GlBufferData(GlBufferData&& tex)
 {
     *this = std::move(tex);
 }
+
 inline GlBufferData& GlBufferData::operator=(GlBufferData&& tex)
 {
     Free();
@@ -684,12 +727,12 @@ inline bool GlBufferData::IsValid() const
     return bo != 0;
 }
 
-inline size_t GlBufferData::SizeBytes() const
+inline GLsizeiptr GlBufferData::SizeBytes() const
 {
     return size_bytes;
 }
 
-inline void GlBufferData::Reinitialise(GlBufferType buffer_type, GLuint size_bytes, GLenum gluse, const unsigned char* data )
+inline void GlBufferData::Reinitialise(GlBufferType buffer_type, GLsizeiptr size_bytes, GLenum gluse, const void* data )
 {
     if(!bo) {
         glGenBuffers(1, &bo);
@@ -732,15 +775,35 @@ inline void GlBufferData::Download(GLvoid* data, GLsizeiptr size_bytes, GLintptr
     Unbind();
 }
 
+template<typename T>
+inline void GlBufferData::Upload(const std::vector<T>& data, GLintptr offset)
+{
+    const size_t total_bytes = data.size() * sizeof(T);
+    assert(offset + total_bytes <= size_bytes);
+    Upload(&data[0], total_bytes, offset);
+}
+
+#ifdef USE_EIGEN
+template<typename Derived>
+inline void GlBufferData::Upload(const Eigen::DenseBase<Derived>& data, GLintptr offset)
+{
+    typedef typename Eigen::DenseBase<Derived>::Scalar Scalar;
+    const size_t num_elements = data.outerSize();
+    const size_t matrix_bytes = data.outerStride() * num_elements;
+    assert(offset + matrix_bytes <= size_bytes);
+    Upload(data.data(), matrix_bytes, offset);
+}
+#endif
+
 ////////////////////////////////////////////////////////////////////////////
 
 inline GlBuffer::GlBuffer()
-    : GlBufferData(), num_elements(0)
+    : GlBufferData(), datatype(0), num_elements(0), count_per_element(0)
 {
 }
 
 inline GlBuffer::GlBuffer(GlBufferType buffer_type, GLuint num_elements, GLenum datatype, GLuint count_per_element, GLenum gluse )
-    : GlBufferData(buffer_type, num_elements * count_per_element * GlDataTypeBytes(datatype), gluse),
+    : GlBufferData(buffer_type, GLuint(num_elements * count_per_element * GlDataTypeBytes(datatype)), gluse),
       datatype(datatype), num_elements(num_elements), count_per_element(count_per_element)
 {
 }
@@ -761,12 +824,12 @@ inline GlBuffer& GlBuffer::operator=(GlBuffer&& o)
     return *this;
 }
 
-inline void GlBuffer::Reinitialise(GlBufferType buffer_type, GLuint num_elements, GLenum datatype, GLuint count_per_element, GLenum gluse, const unsigned char* data )
+inline void GlBuffer::Reinitialise(GlBufferType buffer_type, GLuint num_elements, GLenum datatype, GLuint count_per_element, GLenum gluse, const void *data )
 {
     this->datatype = datatype;
     this->num_elements = num_elements;
     this->count_per_element = count_per_element;
-    const GLuint size_bytes = num_elements * count_per_element * GlDataTypeBytes(datatype);
+    const GLuint size_bytes = GLuint(num_elements * count_per_element * GlDataTypeBytes(datatype));
     GlBufferData::Reinitialise(buffer_type, size_bytes, gluse, data);
 }
 
@@ -777,7 +840,7 @@ inline void GlBuffer::Reinitialise(GlBuffer const& other )
 
 inline void GlBuffer::Resize(GLuint new_num_elements)
 {
-    if(bo!=0) {
+    if(bo!=0 && num_elements > 0) {
 #ifndef HAVE_GLES
         // Backup current data, reinit memory, restore old data
         const size_t backup_elements = std::min(new_num_elements,num_elements);
@@ -798,6 +861,20 @@ inline void GlBuffer::Resize(GLuint new_num_elements)
     num_elements = new_num_elements;
 }
 
+#ifdef USE_EIGEN
+    template<typename Scalar, int R, int C>
+    GlBuffer::GlBuffer(GlBufferType buffer_type, const std::vector<Eigen::Matrix<Scalar, R,C>>& data, GLenum gluse)
+        : GlBufferData(buffer_type, data, gluse)
+    {
+        typedef typename Eigen::Matrix<Scalar, R,C> Element;
+        static_assert( Element::SizeAtCompileTime != Eigen::Dynamic, "No Dynamically sized elements.");
+        static_assert( Element::SizeAtCompileTime * sizeof(Scalar) == sizeof(Element), "No padded elements.");
+
+        datatype = pangolin::GlFormatTraits<Scalar>::gltype;
+        num_elements = data.size();
+        count_per_element = Element::SizeAtCompileTime;
+    }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////
 
@@ -861,6 +938,20 @@ inline size_t GlSizeableBuffer::NextSize(size_t min_size) const
         new_size *= 2;
     }
     return new_size;
+}
+
+////////////////////////////////////////////////////////////////////////////
+
+inline TypedImage ReadFramebuffer(const Viewport& v, const std::string& pixel_format)
+{
+    const PixelFormat fmt = PixelFormatFromString(pixel_format);
+    const GlPixFormat glfmt(fmt);
+
+    TypedImage buffer(v.w, v.h, fmt );
+    glReadBuffer(GL_BACK);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(v.l, v.b, v.w, v.h, glfmt.glformat, glfmt.gltype, buffer.ptr );
+    return buffer;
 }
 
 }

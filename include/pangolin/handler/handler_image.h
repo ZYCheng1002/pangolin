@@ -28,18 +28,18 @@
 #pragma once
 
 #include <pangolin/image/image_utils.h>
-#include <pangolin/display/viewport.h>
 #include <pangolin/display/view.h>
 #include <pangolin/handler/handler.h>
-#include <pangolin/plot/range.h>
+#include <pangolin/gl/viewport.h>
 #include <pangolin/gl/gl.h>
+#include <pangolin/utils/range.h>
 
 #include <functional>
 
 namespace pangolin
 {
 
-class ImageViewHandler : public Handler
+class PANGOLIN_EXPORT ImageViewHandler : public Handler
 {
 public:
     struct EventData {
@@ -58,7 +58,7 @@ public:
 
     // Default constructor: User must call SetDimensions() once image dimensions are known.
     // Default range is [0,1] in x and y.
-    ImageViewHandler();
+    ImageViewHandler(const std::string & title = "");
 
     // View ranges store extremes of image (boundary of pixels)
     // in 'discrete' coords, where 0,0 is center of top-left pixel.
@@ -157,6 +157,8 @@ protected:
     bool use_nn;
     bool flipTextureX;
     bool flipTextureY;
+    std::string title;
+
 };
 
 }
